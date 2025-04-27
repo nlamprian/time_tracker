@@ -27,11 +27,16 @@ void UiManager::init() {
   sw_task_.subscribe(MSG_TOTAL_SW_STATE,
                      get_value(State::PAUSED) | get_value(State::STOPPED));
 
-  auto callback = [](void *sub, lv_msg_t *msg) {
+  auto timer_callback = [](lv_timer_t *event) {
+    static_cast<UiManager *>(event->user_data)->update_callback();
+  };
+  time_timer_ = lv_timer_create(timer_callback, UI_UPDATE_PERIOD, this);
+
+  auto sntp_callback = [](void *sub, lv_msg_t *msg) {
     static_cast<UiManager *>(msg->user_data)->sntp_sync_callback();
     lv_msg_unsubscribe(sub);
   };
-  lv_msg_subscribe(MSG_SNTP_SYNC, callback, this);
+  lv_msg_subscribe(MSG_SNTP_SYNC, sntp_callback, this);
 
   device_.set_screen_status_callback(
       [this](bool status) { screen_status_callback(status); });
@@ -39,13 +44,7 @@ void UiManager::init() {
   Serial.println("UI is ready");
 }
 
-void UiManager::sntp_sync_callback() {
-  Serial.println("Datetime is synced");
-  auto callback = [](lv_timer_t *event) {
-    static_cast<UiManager *>(event->user_data)->update_callback();
-  };
-  time_timer_ = lv_timer_create(callback, UI_UPDATE_PERIOD, this);
-}
+void UiManager::sntp_sync_callback() { Serial.println("Datetime is synced"); }
 
 void UiManager::update_callback() {
   static bool force = false;
